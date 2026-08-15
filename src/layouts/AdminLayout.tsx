@@ -4,7 +4,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Icon } from '@iconify/react'
 import { LogOut, UserRound } from 'lucide-react'
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router'
 import { toast } from 'sonner'
 
@@ -96,26 +96,30 @@ export default function AdminLayout() {
           {loading ? (
             <Loading />
           ) : (
-            <Routes>
-              {routes.map((route) => (
-                <Route key={route.path} path={route.path} element={route.element} />
-              ))}
-              <Route
-                path="/"
-                element={<Navigate to={homePath} replace />}
-              />
-              <Route
-                path="*"
-                element={
-                  <div className="flex h-full min-h-60 flex-col items-center justify-center gap-2 text-muted-foreground">
-                    <p className="text-lg font-medium">404</p>
-                    <p className="text-sm">
-                      路由 <code className="font-mono">{location.pathname}</code> 不存在或未授权
-                    </p>
-                  </div>
-                }
-              />
-            </Routes>
+            // 动态路由的页面组件均为 React.lazy，必须有 Suspense 边界，
+            // 否则首次渲染挂起会导致整树卸载（白屏）
+            <Suspense fallback={<Loading />}>
+              <Routes>
+                {routes.map((route) => (
+                  <Route key={route.path} path={route.path} element={route.element} />
+                ))}
+                <Route
+                  path="/"
+                  element={<Navigate to={homePath} replace />}
+                />
+                <Route
+                  path="*"
+                  element={
+                    <div className="flex h-full min-h-60 flex-col items-center justify-center gap-2 text-muted-foreground">
+                      <p className="text-lg font-medium">404</p>
+                      <p className="text-sm">
+                        路由 <code className="font-mono">{location.pathname}</code> 不存在或未授权
+                      </p>
+                    </div>
+                  }
+                />
+              </Routes>
+            </Suspense>
           )}
         </main>
       </div>
