@@ -12,7 +12,7 @@ export interface PositionRecord {
 
   code: string
 
-  status: boolean
+  status: string
 
   sort: number
 
@@ -24,7 +24,7 @@ export interface PositionInput {
 
   code?: string
 
-  status?: boolean
+  status?: string
 
   sort?: number
 

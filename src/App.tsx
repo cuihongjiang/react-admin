@@ -51,8 +51,10 @@ export default function App() {
     <ErrorBoundary>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        {/* AdminLayout 内部使用后代 <Routes> 渲染动态菜单路由，
+            父路由必须是 path="*"（v7+ 规则），否则后代路由永远无法匹配 */}
         <Route
-          path="/"
+          path="*"
           element={
             <RequireAuth>
               <AdminLayout />

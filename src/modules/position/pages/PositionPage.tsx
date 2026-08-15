@@ -18,6 +18,8 @@ import { z } from 'zod'
 
 import { Auth } from '@/core/components/auth'
 
+import { useDict } from '@/core/hooks/use-dict'
+
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -38,8 +40,14 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
-import { Switch } from '@/components/ui/switch'
 
 import {
   Table,
@@ -58,7 +66,7 @@ const formSchema = z.object({
 
   code: z.string().min(1, '请输入岗位编码'),
 
-  status: z.boolean(),
+  status: z.string().min(1, '请选择岗位状态'),
 
   sort: z.coerce.number().optional(),
 
@@ -76,6 +84,10 @@ export default function PositionPage() {
   const [deleting, setDeleting] = useState<PositionRecord | null>(null)
 
 
+  const { data: dictPostStatus } = useDict('post_status')
+  const dictLabelPostStatus = (v: unknown) =>
+    dictPostStatus?.find((i) => i.value === String(v))?.label ?? String(v ?? '-')
+
 
   // 字典 label 列依赖组件内的 useDict，故列定义置于组件内
   const columnsDef: ColumnDef<PositionRecord>[] = [
@@ -89,7 +101,11 @@ export default function PositionPage() {
 
 
 
-    { accessorKey: 'status', header: '状态' },
+    {
+      accessorKey: 'status',
+      header: '状态',
+      cell: ({ row }) => dictLabelPostStatus(row.original.status),
+    },
 
 
 
@@ -114,18 +130,18 @@ export default function PositionPage() {
   const form = useForm<FormValues>({
     // zod coerce 输入输出类型不一致，这里做一次断言抹平
     resolver: zodResolver(formSchema) as unknown as Resolver<FormValues>,
-    defaultValues: {name: '', code: '', status: false, sort: 0},
+    defaultValues: {name: '', code: '', status: '', sort: 0},
   })
 
   function openCreate() {
     setEditing(null)
-    form.reset({name: '', code: '', status: false, sort: 0})
+    form.reset({name: '', code: '', status: '', sort: 0})
     setDialogOpen(true)
   }
 
   function openEdit(row: PositionRecord) {
     setEditing(row)
-    form.reset({name: row.name ?? '', code: row.code ?? '', status: row.status ?? false, sort: row.sort ?? 0 })
+    form.reset({name: row.name ?? '', code: row.code ?? '', status: row.status ?? '', sort: row.sort ?? 0 })
     setDialogOpen(true)
   }
 
@@ -314,13 +330,21 @@ export default function PositionPage() {
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>状态</FormLabel>
+                    <FormLabel>岗位状态<span className="text-destructive">*</span></FormLabel>
                     <FormControl>
 
-                      <Switch
-                        checked={Boolean(field.value)}
-                        onCheckedChange={field.onChange}
-                      />
+                      <Select onValueChange={field.onChange} value={String(field.value ?? '')}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="请选择岗位状态" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(dictPostStatus ?? []).map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
                     </FormControl>
                     <FormMessage />

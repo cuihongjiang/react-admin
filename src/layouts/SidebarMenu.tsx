@@ -6,7 +6,7 @@
  */
 import { Icon } from '@iconify/react'
 import { ChevronDown } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router'
 
 import { cn } from '@/lib/utils'
@@ -65,6 +65,11 @@ function MenuGroup({ item, fullPath }: { item: MenuItem; fullPath: string }) {
     return item.children?.length ? walk(item.children) : false
   })()
   const [open, setOpen] = useState(containsActive)
+  // 登录后菜单挂载早于路由跳转（初始 pathname 为 "/"），活动项变化时需补展开；
+  // 仅在变为活动时强制展开，手动折叠不受影响
+  useEffect(() => {
+    if (containsActive) setOpen(true)
+  }, [containsActive])
 
   return (
     <div>
