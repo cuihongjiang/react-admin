@@ -10,7 +10,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from '@tanstack/react-table'
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -18,6 +18,7 @@ import { z } from 'zod'
 
 import type { Paginated } from '@/core/types'
 import { Auth } from '@/core/components/auth'
+import { SearchInput, TableToolbar, ToolbarCount } from '@/core/components/table-toolbar'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -153,31 +154,24 @@ export default function UserPage() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 py-4">
-          <div className="relative">
-            <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="按用户名搜索"
-              className="w-56 pl-8"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-                setPage(1)
-              }}
-            />
-          </div>
+      <Card className="gap-0 py-0">
+        <TableToolbar>
+          <SearchInput
+            placeholder="按用户名搜索"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+          />
           <Auth code="user:add">
             <Button onClick={openCreate}>
               <Plus className="size-4" />
-              新增用户
+              新增
             </Button>
           </Auth>
-          <span className="ml-auto text-sm text-muted-foreground">共 {total} 条</span>
-        </CardContent>
-      </Card>
-
-      <Card>
+          <ToolbarCount total={total} />
+        </TableToolbar>
         <CardContent className="p-0">
           <Table>
             <TableHeader>

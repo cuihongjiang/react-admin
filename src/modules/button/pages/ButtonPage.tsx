@@ -17,6 +17,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { Auth } from '@/core/components/auth'
+import { SearchInput, TableToolbar, ToolbarCount } from '@/core/components/table-toolbar'
 
 
 import { Button } from '@/components/ui/button'
@@ -149,40 +150,32 @@ export default function ButtonPage() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 py-4">
-
-          <Input
+      <Card className="gap-0 py-0">
+        <TableToolbar>
+          <SearchInput
             placeholder="按权限名称搜索"
-            className="w-48"
             value={search['name'] ?? ''}
             onChange={(e) => {
               setSearch((s) => ({ ...s, name: e.target.value }))
               setPage(1)
             }}
           />
-
-          <Input
+          <SearchInput
             placeholder="按权限值搜索"
-            className="w-48"
             value={search['code'] ?? ''}
             onChange={(e) => {
               setSearch((s) => ({ ...s, code: e.target.value }))
               setPage(1)
             }}
           />
-
           <Auth code="button:add">
             <Button onClick={openCreate}>
               <Plus className="size-4" />
-              新增权限标识
+              新增
             </Button>
           </Auth>
-          <span className="ml-auto text-sm text-muted-foreground">共 {total} 条</span>
-        </CardContent>
-      </Card>
-
-      <Card>
+          <ToolbarCount total={total} />
+        </TableToolbar>
         <CardContent className="p-0">
           <Table>
             <TableHeader>

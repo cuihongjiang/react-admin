@@ -1,5 +1,5 @@
 /**
- * 岗位管理管理页：搜索 + TanStack Table 分页列表 + 新增/编辑弹窗 + 删除
+ * 公告管理管理页：搜索 + TanStack Table 分页列表 + 新增/编辑弹窗 + 删除
  * 由低代码生成器生成，可在此基础上精修
  */
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,9 +17,8 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { Auth } from '@/core/components/auth'
-import { SearchInput, TableToolbar, ToolbarCount } from '@/core/components/table-toolbar'
 
-import { useDict } from '@/core/hooks/use-dict'
+import { TableToolbar, ToolbarCount } from '@/core/components/table-toolbar'
 
 
 import { Button } from '@/components/ui/button'
@@ -39,16 +38,12 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+
 import { Input } from '@/components/ui/input'
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
+
+import { Switch } from '@/components/ui/switch'
 
 import {
   Table,
@@ -59,15 +54,15 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-import { PositionApi, type PositionRecord } from '../api'
+import { NoticeApi, type NoticeRecord } from '../api'
 
 const formSchema = z.object({
 
-  name: z.string().min(1, '请输入岗位名称'),
+  title: z.string().optional(),
 
-  code: z.string().min(1, '请输入岗位编码'),
+  content: z.string().optional(),
 
-  status: z.string().min(1, '请选择岗位状态'),
+  status: z.boolean(),
 
   sort: z.coerce.number().optional(),
 
@@ -75,38 +70,30 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-export default function PositionPage() {
+export default function NoticePage() {
   const queryClient = useQueryClient()
-  const [search, setSearch] = useState<Record<string, string>>({})
+
   const [page, setPage] = useState(1)
   const [pageSize] = useState(10)
-  const [editing, setEditing] = useState<PositionRecord | null>(null)
+  const [editing, setEditing] = useState<NoticeRecord | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [deleting, setDeleting] = useState<PositionRecord | null>(null)
+  const [deleting, setDeleting] = useState<NoticeRecord | null>(null)
 
-
-  const { data: dictPostStatus } = useDict('post_status')
-  const dictLabelPostStatus = (v: unknown) =>
-    dictPostStatus?.find((i) => i.value === String(v))?.label ?? String(v ?? '-')
 
 
   // 字典 label 列依赖组件内的 useDict，故列定义置于组件内
-  const columnsDef: ColumnDef<PositionRecord>[] = [
+  const columnsDef: ColumnDef<NoticeRecord>[] = [
 
 
-    { accessorKey: 'name', header: '岗位名称' },
-
-
-
-    { accessorKey: 'code', header: '岗位编码' },
+    { accessorKey: 'title', header: '标题' },
 
 
 
-    {
-      accessorKey: 'status',
-      header: '状态',
-      cell: ({ row }) => dictLabelPostStatus(row.original.status),
-    },
+    { accessorKey: 'content', header: '内容' },
+
+
+
+    { accessorKey: 'status', header: '状态' },
 
 
 
@@ -115,11 +102,11 @@ export default function PositionPage() {
 
   ]
 
-  const params: Record<string, unknown> = { page, page_size: pageSize, ...search }
+  const params: Record<string, unknown> = { page, page_size: pageSize }
 
   const listQuery = useQuery({
-    queryKey: ['position-list', params],
-    queryFn: () => PositionApi.list(params),
+    queryKey: ['notice-list', params],
+    queryFn: () => NoticeApi.list(params),
   })
 
   const table = useReactTable({
@@ -131,38 +118,38 @@ export default function PositionPage() {
   const form = useForm<FormValues>({
     // zod coerce 输入输出类型不一致，这里做一次断言抹平
     resolver: zodResolver(formSchema) as unknown as Resolver<FormValues>,
-    defaultValues: {name: '', code: '', status: '', sort: 0},
+    defaultValues: {title: '', content: '', status: false, sort: 0},
   })
 
   function openCreate() {
     setEditing(null)
-    form.reset({name: '', code: '', status: '', sort: 0})
+    form.reset({title: '', content: '', status: false, sort: 0})
     setDialogOpen(true)
   }
 
-  function openEdit(row: PositionRecord) {
+  function openEdit(row: NoticeRecord) {
     setEditing(row)
-    form.reset({name: row.name ?? '', code: row.code ?? '', status: row.status ?? '', sort: row.sort ?? 0 })
+    form.reset({title: row.title ?? '', content: row.content ?? '', status: row.status ?? false, sort: row.sort ?? 0 })
     setDialogOpen(true)
   }
 
   const saveMutation = useMutation({
     mutationFn: (values: FormValues) =>
-      editing ? PositionApi.update(editing.id, values) : PositionApi.create(values),
+      editing ? NoticeApi.update(editing.id, values) : NoticeApi.create(values),
     onSuccess: () => {
       toast.success(editing ? '修改成功' : '新增成功')
       setDialogOpen(false)
-      queryClient.invalidateQueries({ queryKey: ['position-list'] })
+      queryClient.invalidateQueries({ queryKey: ['notice-list'] })
     },
     onError: (error: Error) => toast.error(error.message),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => PositionApi.remove(id),
+    mutationFn: (id: number) => NoticeApi.remove(id),
     onSuccess: () => {
       toast.success('删除成功')
       setDeleting(null)
-      queryClient.invalidateQueries({ queryKey: ['position-list'] })
+      queryClient.invalidateQueries({ queryKey: ['notice-list'] })
     },
     onError: (error: Error) => toast.error(error.message),
   })
@@ -174,23 +161,8 @@ export default function PositionPage() {
     <div className="space-y-4">
       <Card className="gap-0 py-0">
         <TableToolbar>
-          <SearchInput
-            placeholder="按岗位名称搜索"
-            value={search['name'] ?? ''}
-            onChange={(e) => {
-              setSearch((s) => ({ ...s, name: e.target.value }))
-              setPage(1)
-            }}
-          />
-          <SearchInput
-            placeholder="按岗位编码搜索"
-            value={search['code'] ?? ''}
-            onChange={(e) => {
-              setSearch((s) => ({ ...s, code: e.target.value }))
-              setPage(1)
-            }}
-          />
-          <Auth code="position:add">
+
+          <Auth code="notice:add">
             <Button onClick={openCreate}>
               <Plus className="size-4" />
               新增
@@ -233,12 +205,12 @@ export default function PositionPage() {
                     ))}
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Auth code="position:update">
+                        <Auth code="notice:update">
                           <Button variant="ghost" size="sm" onClick={() => openEdit(row.original)}>
                             <Pencil className="size-4" />
                           </Button>
                         </Auth>
-                        <Auth code="position:delete">
+                        <Auth code="notice:delete">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -278,7 +250,7 @@ export default function PositionPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? '编辑岗位管理' : '新增岗位管理'}</DialogTitle>
+            <DialogTitle>{editing ? '编辑公告管理' : '新增公告管理'}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form
@@ -288,13 +260,13 @@ export default function PositionPage() {
 
               <FormField
                 control={form.control}
-                name="name"
+                name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>岗位名称<span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>标题</FormLabel>
                     <FormControl>
 
-                      <Input placeholder="请输入岗位名称" {...field} />
+                      <Input placeholder="请输入标题" {...field} />
 
                     </FormControl>
                     <FormMessage />
@@ -304,13 +276,13 @@ export default function PositionPage() {
 
               <FormField
                 control={form.control}
-                name="code"
+                name="content"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>岗位编码<span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>内容</FormLabel>
                     <FormControl>
 
-                      <Input placeholder="请输入岗位编码" {...field} />
+                      <Input placeholder="请输入内容" {...field} />
 
                     </FormControl>
                     <FormMessage />
@@ -323,21 +295,13 @@ export default function PositionPage() {
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>岗位状态<span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>状态</FormLabel>
                     <FormControl>
 
-                      <Select onValueChange={field.onChange} value={String(field.value ?? '')}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="请选择岗位状态" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(dictPostStatus ?? []).map((item) => (
-                            <SelectItem key={item.value} value={item.value}>
-                              {item.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Switch
+                        checked={Boolean(field.value)}
+                        onCheckedChange={field.onChange}
+                      />
 
                     </FormControl>
                     <FormMessage />
@@ -380,7 +344,7 @@ export default function PositionPage() {
             <DialogTitle>确认删除</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            确定删除该岗位管理记录吗？此操作不可恢复。
+            确定删除该公告管理记录吗？此操作不可恢复。
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
