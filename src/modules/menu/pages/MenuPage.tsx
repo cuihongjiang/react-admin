@@ -136,7 +136,9 @@ export default function MenuPage() {
   })
 
   const table = useReactTable({
-    data: listQuery.data?.items ?? [],
+    data: Array.isArray(listQuery.data)
+      ? listQuery.data
+      : listQuery.data?.items ?? [],
     columns: columnsDef,
     getCoreRowModel: getCoreRowModel(),
   })

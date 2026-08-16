@@ -3,11 +3,13 @@
  *
  * component key 与后端 system_menu.component 字段一一对应
  */
-import { lazy } from 'react'
 
+import { lazyPage } from '@/core/lazy'
 import { defineModule } from '@/core/module'
 
-const RolePage = lazy(() => import('./pages/RolePage'))
+const loadRolePage = () => import('./pages/RolePage')
+loadRolePage()
+const RolePage = lazyPage(loadRolePage)
 
 export default defineModule({
   name: 'role',

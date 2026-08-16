@@ -3,11 +3,13 @@
  *
  * component key 与后端 system_menu.component 字段一一对应
  */
-import { lazy } from 'react'
 
+import { lazyPage } from '@/core/lazy'
 import { defineModule } from '@/core/module'
 
-const ButtonPage = lazy(() => import('./pages/ButtonPage'))
+const loadButtonPage = () => import('./pages/ButtonPage')
+loadButtonPage()
+const ButtonPage = lazyPage(loadButtonPage)
 
 export default defineModule({
   name: 'button',

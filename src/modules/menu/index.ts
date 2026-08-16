@@ -3,11 +3,13 @@
  *
  * component key 与后端 system_menu.component 字段一一对应
  */
-import { lazy } from 'react'
 
+import { lazyPage } from '@/core/lazy'
 import { defineModule } from '@/core/module'
 
-const MenuPage = lazy(() => import('./pages/MenuPage'))
+const loadMenuPage = () => import('./pages/MenuPage')
+loadMenuPage()
+const MenuPage = lazyPage(loadMenuPage)
 
 export default defineModule({
   name: 'menu',
