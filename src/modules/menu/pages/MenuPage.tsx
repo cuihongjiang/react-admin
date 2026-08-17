@@ -22,6 +22,7 @@ import { SearchInput, TableToolbar, ToolbarCount } from '@/core/components/table
 import { useDict } from '@/core/hooks/use-dict'
 
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -125,6 +126,21 @@ export default function MenuPage() {
 
 
     { accessorKey: 'icon', header: '图标' },
+
+
+
+    {
+      accessorKey: 'status',
+      header: '状态',
+      cell: ({ row }) =>
+        row.original.status ? (
+          <Badge>启用</Badge>
+        ) : (
+          <Badge variant="outline" className="text-muted-foreground">
+            停用
+          </Badge>
+        ),
+    },
 
 
   ]
