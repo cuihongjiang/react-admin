@@ -174,7 +174,7 @@ export default function MenuPage() {
 
   function openEdit(row: MenuRecord) {
     setEditing(row)
-    form.reset({title: row.title ?? '', type: row.type ?? '', path: row.path ?? '', component: row.component ?? '', name: row.name ?? '', icon: row.icon ?? '', sort: row.sort ?? 0, status: row.status ?? false })
+    form.reset({title: row.title ?? '', type: String(row.type) ?? '', path: row.path ?? '', component: row.component ?? '', name: row.name ?? '', icon: row.icon ?? '', sort: row.sort ?? 0, status: row.status ?? false })
     setDialogOpen(true)
   }
 
@@ -334,13 +334,13 @@ export default function MenuPage() {
                     <FormLabel>菜单类型<span className="text-destructive">*</span></FormLabel>
                     <FormControl>
 
-                      <Select onValueChange={field.onChange} value={String(field.value ?? '')}>
+                      <Select onValueChange={field.onChange} value={field.value ?? ''}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="请选择菜单类型" />
                         </SelectTrigger>
                         <SelectContent>
                           {(dictMenuType ?? []).map((item) => (
-                            <SelectItem key={item.value} value={item.value}>
+                            <SelectItem key={item.value} value={String(item.value)}>
                               {item.label}
                             </SelectItem>
                           ))}
