@@ -53,6 +53,8 @@ import {
 
 import { DepartmentApi, type DepartmentRecord } from '../api'
 
+import { createToggleMutation } from '@/hooks/mutations'
+
 const formSchema = z.object({
 
   name: z.string().min(1, '请输入部门名称'),
@@ -67,6 +69,18 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
+/**
+ * 切换部门状态
+ */
+const useToggleDepartmentStatus = createToggleMutation({
+  updateFn: (id, value) => DepartmentApi.update(id, value),
+  queryKey: ['department-list'],
+  dataField: 'data',  // 如果数据在 old.data 中
+  successMessage: '部门状态已更新',
+  errorMessage: '部门状态更新失败',
+})
+
+
 export default function DepartmentPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState<Record<string, string>>({})
@@ -76,7 +90,7 @@ export default function DepartmentPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<DepartmentRecord | null>(null)
 
-
+  const toggleStatusMutation = useToggleDepartmentStatus()
 
   // 字典 label 列依赖组件内的 useDict，故列定义置于组件内
   const columnsDef: ColumnDef<DepartmentRecord>[] = [
@@ -94,7 +108,21 @@ export default function DepartmentPage() {
 
 
 
-    { accessorKey: 'status', header: '状态' },
+    {
+      accessorKey: 'status', header: '状态',
+      cell: ({ row }) => {
+        const isActive = row.getValue("status")  // 获取 true/false 值
+        return (
+          <Switch
+            checked={Boolean(isActive)}
+            onCheckedChange={() => {
+              toggleStatusMutation.mutate({id:row.original.id, value:{name:row.original.name, status:!isActive}})
+            }}
+            disabled={toggleStatusMutation.isPending}
+          />
+        )
+      },
+    },
 
 
   ]
@@ -115,18 +143,18 @@ export default function DepartmentPage() {
   const form = useForm<FormValues>({
     // zod coerce 输入输出类型不一致，这里做一次断言抹平
     resolver: zodResolver(formSchema) as unknown as Resolver<FormValues>,
-    defaultValues: {name: '', owner: '', phone: '', status: false},
+    defaultValues: { name: '', owner: '', phone: '', status: false },
   })
 
   function openCreate() {
     setEditing(null)
-    form.reset({name: '', owner: '', phone: '', status: false})
+    form.reset({ name: '', owner: '', phone: '', status: false })
     setDialogOpen(true)
   }
 
   function openEdit(row: DepartmentRecord) {
     setEditing(row)
-    form.reset({name: row.name ?? '', owner: row.owner ?? '', phone: row.phone ?? '', status: row.status ?? false })
+    form.reset({ name: row.name ?? '', owner: row.owner ?? '', phone: row.phone ?? '', status: row.status ?? false })
     setDialogOpen(true)
   }
 

@@ -63,6 +63,8 @@ import {
 
 import { RoleApi, type RoleRecord } from '../api'
 
+import { createToggleMutation } from '@/hooks/mutations'
+
 const formSchema = z.object({
 
   name: z.string().min(1, '请输入角色名称'),
@@ -77,6 +79,17 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
+/**
+ * 切换角色状态
+ */
+const useToggleRoleStatus = createToggleMutation({
+  updateFn: (id, value) => RoleApi.update(id, value),
+  queryKey: ['role-list'],
+  dataField: 'data',  // 如果数据在 old.data 中
+  successMessage: '角色状态已更新',
+  errorMessage: '角色状态更新失败',
+})
+
 export default function RolePage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState<Record<string, string>>({})
@@ -86,6 +99,7 @@ export default function RolePage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<RoleRecord | null>(null)
 
+  const toggleStatusMutation = useToggleRoleStatus()
 
   const { data: dictDataRange } = useDict('data_range')
   const dictLabelDataRange = (v: unknown) =>
@@ -104,7 +118,20 @@ export default function RolePage() {
 
 
 
-    { accessorKey: 'status', header: '状态' },
+    { accessorKey: 'status', header: '状态',
+      cell: ({ row }) => {
+        const isActive = row.getValue("status")  // 获取 true/false 值
+        return (
+          <Switch
+            checked={Boolean(isActive)}
+            onCheckedChange={() => {
+              toggleStatusMutation.mutate({id:row.original.id, value:{code:row.original.code, name:row.original.name, status:!isActive}})
+            }}
+            disabled={toggleStatusMutation.isPending}
+          />
+        )
+      },
+    },
 
 
 

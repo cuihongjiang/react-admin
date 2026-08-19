@@ -53,6 +53,8 @@ import {
 
 import { ButtonApi, type ButtonRecord } from '../api'
 
+import { createToggleMutation } from '@/hooks/mutations'
+
 const formSchema = z.object({
 
   name: z.string().min(1, '请输入权限名称'),
@@ -65,6 +67,17 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
+/**
+ * 切换权限应用状态
+ */
+const useToggleButtonStatus = createToggleMutation({
+  updateFn: (id, value) => ButtonApi.update(id, value),
+  queryKey: ['button-list'],
+  dataField: 'data',  // 如果数据在 old.data 中
+  successMessage: '权限状态已更新',
+  errorMessage: '权限状态更新失败',
+})
+
 export default function ButtonPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState<Record<string, string>>({})
@@ -74,7 +87,7 @@ export default function ButtonPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<ButtonRecord | null>(null)
 
-
+  const toggleStatusMutation = useToggleButtonStatus()
 
   // 字典 label 列依赖组件内的 useDict，故列定义置于组件内
   const columnsDef: ColumnDef<ButtonRecord>[] = [
@@ -88,7 +101,20 @@ export default function ButtonPage() {
 
 
 
-    { accessorKey: 'status', header: '状态' },
+    { accessorKey: 'status', header: '状态',
+      cell: ({ row }) => {
+        const isActive = row.getValue("status")  // 获取 true/false 值
+        return (
+          <Switch
+            checked={Boolean(isActive)}
+            onCheckedChange={() => {
+              toggleStatusMutation.mutate({id:row.original.id, value:{code:row.original.code, name:row.original.name, status:!isActive}})
+            }}
+            disabled={toggleStatusMutation.isPending}
+          />
+        )
+      },
+    },
 
 
   ]
