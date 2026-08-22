@@ -2,35 +2,38 @@
  * 角色管理管理页：搜索 + TanStack Table 分页列表 + 新增/编辑弹窗 + 删除
  * 由低代码生成器生成，可在此基础上精修
  */
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
-} from '@tanstack/react-table'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
-import { useForm, type Resolver } from 'react-hook-form'
-import { toast } from 'sonner'
-import { z } from 'zod'
+} from "@tanstack/react-table";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useForm, type Resolver } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 
-import { Auth } from '@/core/components/auth'
-import { SearchInput, TableToolbar, ToolbarCount } from '@/core/components/table-toolbar'
+import { Auth } from "@/core/components/auth";
+import {
+  SearchInput,
+  TableToolbar,
+  ToolbarCount,
+} from "@/core/components/table-toolbar";
 
-import { useDict } from '@/core/hooks/use-dict'
+import { useDict } from "@/core/hooks/use-dict";
 
-
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -38,8 +41,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 
 import {
   Select,
@@ -47,10 +50,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 
-
-import { Switch } from '@/components/ui/switch'
+import { Switch } from "@/components/ui/switch";
 
 import {
   Table,
@@ -59,145 +61,148 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 
-import { RoleApi, type RoleRecord } from '../api'
+import { RoleApi, type RoleRecord } from "../api";
 
-import { createToggleMutation } from '@/hooks/mutations'
+import { createToggleMutation } from "@/hooks/mutations";
 
 const formSchema = z.object({
-
-  name: z.string().min(1, '请输入角色名称'),
-
-  code: z.string().min(1, '请输入角色编码'),
-
+  name: z.string().min(1, "请输入角色名称"),
+  code: z.string().min(1, "请输入角色编码"),
+  data_range: z.string().min(1, "请选择数据权限范围"),
   status: z.boolean(),
+});
 
-  data_range: z.string().min(1, '请选择数据权限范围'),
-
-})
-
-type FormValues = z.infer<typeof formSchema>
+type FormValues = z.infer<typeof formSchema>;
 
 /**
  * 切换角色状态
  */
 const useToggleRoleStatus = createToggleMutation({
   updateFn: (id, value) => RoleApi.update(id, value),
-  queryKey: ['role-list'],
-  dataField: 'data',  // 如果数据在 old.data 中
-  successMessage: '角色状态已更新',
-  errorMessage: '角色状态更新失败',
-})
+  queryKey: ["role-list"],
+  dataField: "data", // 如果数据在 old.data 中
+  successMessage: "角色状态已更新",
+  errorMessage: "角色状态更新失败",
+  debounceMs: 200, // 防抖 200ms
+});
 
 export default function RolePage() {
-  const queryClient = useQueryClient()
-  const [search, setSearch] = useState<Record<string, string>>({})
-  const [page, setPage] = useState(1)
-  const [pageSize] = useState(10)
-  const [editing, setEditing] = useState<RoleRecord | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [deleting, setDeleting] = useState<RoleRecord | null>(null)
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState<Record<string, string>>({});
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [editing, setEditing] = useState<RoleRecord | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState<RoleRecord | null>(null);
 
-  const toggleStatusMutation = useToggleRoleStatus()
+  const toggleStatusMutation = useToggleRoleStatus();
 
-  const { data: dictDataRange } = useDict('data_range')
+  const { data: dictDataRange } = useDict("data_range");
   const dictLabelDataRange = (v: unknown) =>
-    dictDataRange?.find((i) => i.value === String(v))?.label ?? String(v ?? '-')
-
+    dictDataRange?.find((i) => i.value === String(v))?.label ??
+    String(v ?? "-");
 
   // 字典 label 列依赖组件内的 useDict，故列定义置于组件内
   const columnsDef: ColumnDef<RoleRecord>[] = [
+    { accessorKey: "name", header: "角色名称" },
 
+    { accessorKey: "code", header: "角色编码" },
 
-    { accessorKey: 'name', header: '角色名称' },
+    {
+      accessorKey: "data_range",
+      header: "数据权限",
+      cell: ({ row }) => dictLabelDataRange(row.original.data_range),
+    },
 
-
-
-    { accessorKey: 'code', header: '角色编码' },
-
-
-
-    { accessorKey: 'status', header: '状态',
+    {
+      accessorKey: "status",
+      header: "状态",
       cell: ({ row }) => {
-        const isActive = row.getValue("status")  // 获取 true/false 值
+        const isActive = row.getValue("status"); // 获取 true/false 值
         return (
           <Switch
             checked={Boolean(isActive)}
             onCheckedChange={() => {
-              toggleStatusMutation.mutate({id:row.original.id, value:{code:row.original.code, name:row.original.name, status:!isActive}})
+              toggleStatusMutation.toggle({
+                id: row.original.id,
+                value: {
+                  code: row.original.code,
+                  name: row.original.name,
+                  status: !isActive,
+                },
+              });
             }}
-            disabled={toggleStatusMutation.isPending}
           />
-        )
+        );
       },
     },
+  ];
 
-
-
-    {
-      accessorKey: 'data_range',
-      header: '数据权限',
-      cell: ({ row }) => dictLabelDataRange(row.original.data_range),
-    },
-
-
-  ]
-
-  const params: Record<string, unknown> = { page, page_size: pageSize, ...search }
+  const params: Record<string, unknown> = {
+    page,
+    page_size: pageSize,
+    ...search,
+  };
 
   const listQuery = useQuery({
-    queryKey: ['role-list', params],
+    queryKey: ["role-list", params],
     queryFn: () => RoleApi.list(params),
-  })
+  });
 
   const table = useReactTable({
     data: listQuery.data?.items ?? [],
     columns: columnsDef,
     getCoreRowModel: getCoreRowModel(),
-  })
+  });
 
   const form = useForm<FormValues>({
     // zod coerce 输入输出类型不一致，这里做一次断言抹平
     resolver: zodResolver(formSchema) as unknown as Resolver<FormValues>,
-    defaultValues: {name: '', code: '', status: false, data_range: ''},
-  })
+    defaultValues: { name: "", code: "", status: false, data_range: "" },
+  });
 
   function openCreate() {
-    setEditing(null)
-    form.reset({name: '', code: '', status: false, data_range: ''})
-    setDialogOpen(true)
+    setEditing(null);
+    form.reset({ name: "", code: "", status: false, data_range: "" });
+    setDialogOpen(true);
   }
 
   function openEdit(row: RoleRecord) {
-    setEditing(row)
-    form.reset({name: row.name ?? '', code: row.code ?? '', status: row.status ?? false, data_range: row.data_range ?? '' })
-    setDialogOpen(true)
+    setEditing(row);
+    form.reset({
+      name: row.name ?? "",
+      code: row.code ?? "",
+      status: row.status ?? false,
+      data_range: row.data_range ?? "",
+    });
+    setDialogOpen(true);
   }
 
   const saveMutation = useMutation({
     mutationFn: (values: FormValues) =>
       editing ? RoleApi.update(editing.id, values) : RoleApi.create(values),
     onSuccess: () => {
-      toast.success(editing ? '修改成功' : '新增成功')
-      setDialogOpen(false)
-      queryClient.invalidateQueries({ queryKey: ['role-list'] })
+      toast.success(editing ? "修改成功" : "新增成功");
+      setDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["role-list"] });
     },
     onError: (error: Error) => toast.error(error.message),
-  })
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => RoleApi.remove(id),
     onSuccess: () => {
-      toast.success('删除成功')
-      setDeleting(null)
-      queryClient.invalidateQueries({ queryKey: ['role-list'] })
+      toast.success("删除成功");
+      setDeleting(null);
+      queryClient.invalidateQueries({ queryKey: ["role-list"] });
     },
     onError: (error: Error) => toast.error(error.message),
-  })
+  });
 
-  const total = listQuery.data?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const total = listQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
     <div className="space-y-4">
@@ -205,10 +210,10 @@ export default function RolePage() {
         <TableToolbar>
           <SearchInput
             placeholder="按角色名称搜索"
-            value={search['name'] ?? ''}
+            value={search["name"] ?? ""}
             onChange={(e) => {
-              setSearch((s) => ({ ...s, name: e.target.value }))
-              setPage(1)
+              setSearch((s) => ({ ...s, name: e.target.value }));
+              setPage(1);
             }}
           />
           <Auth code="role:add">
@@ -225,7 +230,10 @@ export default function RolePage() {
               <TableRow>
                 {table.getHeaderGroups()[0]?.headers.map((header) => (
                   <TableHead key={header.id}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
                   </TableHead>
                 ))}
                 <TableHead className="w-32 text-right">操作</TableHead>
@@ -234,13 +242,19 @@ export default function RolePage() {
             <TableBody>
               {listQuery.isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={columnsDef.length + 1} className="h-24 text-center">
+                  <TableCell
+                    colSpan={columnsDef.length + 1}
+                    className="h-24 text-center"
+                  >
                     加载中...
                   </TableCell>
                 </TableRow>
               ) : table.getRowModel().rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={columnsDef.length + 1} className="h-24 text-center">
+                  <TableCell
+                    colSpan={columnsDef.length + 1}
+                    className="h-24 text-center"
+                  >
                     暂无数据
                   </TableCell>
                 </TableRow>
@@ -249,13 +263,20 @@ export default function RolePage() {
                   <TableRow key={row.original.id}>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell ?? null, cell.getContext())}
+                        {flexRender(
+                          cell.column.columnDef.cell ?? null,
+                          cell.getContext(),
+                        )}
                       </TableCell>
                     ))}
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         <Auth code="role:update">
-                          <Button variant="ghost" size="sm" onClick={() => openEdit(row.original)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEdit(row.original)}
+                          >
                             <Pencil className="size-4" />
                           </Button>
                         </Auth>
@@ -280,7 +301,12 @@ export default function RolePage() {
       </Card>
 
       <div className="flex items-center justify-end gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page <= 1}
+          onClick={() => setPage((p) => p - 1)}
+        >
           上一页
         </Button>
         <span className="text-sm text-muted-foreground">
@@ -299,24 +325,27 @@ export default function RolePage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? '编辑角色管理' : '新增角色管理'}</DialogTitle>
+            <DialogTitle>
+              {editing ? "编辑角色管理" : "新增角色管理"}
+            </DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
+              onSubmit={form.handleSubmit((values) =>
+                saveMutation.mutate(values),
+              )}
               className="space-y-4"
             >
-
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>角色名称<span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>
+                      角色名称<span className="text-destructive">*</span>
+                    </FormLabel>
                     <FormControl>
-
                       <Input placeholder="请输入角色名称" {...field} />
-
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -328,11 +357,11 @@ export default function RolePage() {
                 name="code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>角色编码<span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>
+                      角色编码<span className="text-destructive">*</span>
+                    </FormLabel>
                     <FormControl>
-
                       <Input placeholder="请输入角色编码" {...field} />
-
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -346,12 +375,10 @@ export default function RolePage() {
                   <FormItem>
                     <FormLabel>状态</FormLabel>
                     <FormControl>
-
                       <Switch
                         checked={Boolean(field.value)}
                         onCheckedChange={field.onChange}
                       />
-
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -363,10 +390,14 @@ export default function RolePage() {
                 name="data_range"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>数据权限范围<span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>
+                      数据权限范围<span className="text-destructive">*</span>
+                    </FormLabel>
                     <FormControl>
-
-                      <Select onValueChange={field.onChange} value={String(field.value ?? '')}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={String(field.value ?? "")}
+                      >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="请选择数据权限范围" />
                         </SelectTrigger>
@@ -378,7 +409,6 @@ export default function RolePage() {
                           ))}
                         </SelectContent>
                       </Select>
-
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -386,11 +416,15 @@ export default function RolePage() {
               />
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDialogOpen(false)}
+                >
                   取消
                 </Button>
                 <Button type="submit" disabled={saveMutation.isPending}>
-                  {saveMutation.isPending ? '保存中...' : '确定'}
+                  {saveMutation.isPending ? "保存中..." : "确定"}
                 </Button>
               </DialogFooter>
             </form>
@@ -398,7 +432,10 @@ export default function RolePage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleting} onOpenChange={(open) => !open && setDeleting(null)}>
+      <Dialog
+        open={!!deleting}
+        onOpenChange={(open) => !open && setDeleting(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>确认删除</DialogTitle>
@@ -415,11 +452,11 @@ export default function RolePage() {
               disabled={deleteMutation.isPending}
               onClick={() => deleting && deleteMutation.mutate(deleting.id)}
             >
-              {deleteMutation.isPending ? '删除中...' : '删除'}
+              {deleteMutation.isPending ? "删除中..." : "删除"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

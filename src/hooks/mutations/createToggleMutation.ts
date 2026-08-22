@@ -1,30 +1,29 @@
+import { useEffect, useRef } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
-interface ToggleParams {
-  id: number
-  value:Record
-}
-
-interface Record {
+interface UpdateRecord {
   name?: string
-  code?:string
+  code?: string
   status: boolean
 }
 
+interface ToggleParams {
+  id: number
+  value: UpdateRecord
+}
+
 interface CreateToggleMutationOptions<TData = unknown> {
-  updateFn: (id: number, value:Record) => Promise<TData>
+  updateFn: (id: number, value: UpdateRecord) => Promise<TData>
   queryKey: string[]
   dataField?: string
   successMessage?: string
   errorMessage?: string
-  /** 自定义数据更新逻辑 */
   updateData?: (old: any, id: number | string, status: boolean) => any
-  /** 是否启用乐观更新 */
   optimistic?: boolean
-  /** 成功后的回调 */
+  /** 防抖毫秒数，0 = 不防抖立即提交 */
+  debounceMs?: number
   onSuccessCallback?: (data: TData, params: ToggleParams) => void
-  /** 错误后的回调 */
   onErrorCallback?: (error: Error, params: ToggleParams) => void
 }
 
@@ -36,14 +35,57 @@ export function createToggleMutation<TData = unknown>({
   errorMessage = '状态更新失败',
   updateData,
   optimistic = true,
+  debounceMs = 500,
   onSuccessCallback,
   onErrorCallback,
 }: CreateToggleMutationOptions<TData>) {
+
+  // ✅ 工厂作用域的纯函数：唯一一份缓存更新逻辑
+  const applyStatusToCache = (old: any, id: number, status: boolean): any => {
+    if (!old) return old
+
+    if (updateData) {
+      return updateData(old, id, status)
+    }
+
+    if (Array.isArray(old)) {
+      return old.map((item: any) =>
+        item.id === id ? { ...item, status } : item
+      )
+    }
+
+    if (old[dataField] && Array.isArray(old[dataField])) {
+      return {
+        ...old,
+        [dataField]: old[dataField].map((item: any) =>
+          item.id === id ? { ...item, status } : item
+        ),
+      }
+    }
+
+    return old
+  }
+
+  // 返回的仍是一个标准的自定义 Hook
   return function useToggleMutation() {
     const queryClient = useQueryClient()
 
-    return useMutation({
-      mutationFn: (params: ToggleParams) => updateFn(params.id, {...params.value}),
+    // 每个组件实例独立的：按行 id 防抖
+    const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
+    const latest = useRef<Map<number, UpdateRecord>>(new Map())
+
+    // 卸载时清理
+    useEffect(() => {
+      const map = timers.current
+      return () => {
+        map.forEach((t) => clearTimeout(t))
+        map.clear()
+        latest.current.clear()
+      }
+    }, [])
+
+    const mutation = useMutation({
+      mutationFn: (params: ToggleParams) => updateFn(params.id, { ...params.value }),
 
       onMutate: async (params) => {
         if (!optimistic) return
@@ -52,32 +94,9 @@ export function createToggleMutation<TData = unknown>({
 
         const previousData = queryClient.getQueryData(queryKey)
 
-        queryClient.setQueryData(queryKey, (old: any) => {
-          if (!old) return old
-
-          // 如果有自定义更新函数，使用它
-          if (updateData) {
-            return updateData(old, params.id, params.value.status)
-          }
-
-          // 否则使用默认更新逻辑
-          if (Array.isArray(old)) {
-            return old.map((item: any) =>
-              item.id === params.id ? { ...item, status: params.value.status } : item
-            )
-          }
-
-          if (old[dataField] && Array.isArray(old[dataField])) {
-            return {
-              ...old,
-              [dataField]: old[dataField].map((item: any) =>
-                item.id === params.id ? { ...item, status: params.value.status } : item
-              ),
-            }
-          }
-
-          return old
-        })
+        queryClient.setQueryData(queryKey, (old: any) =>
+          applyStatusToCache(old, params.id, params.value.status)
+        )
 
         return { previousData }
       },
@@ -87,10 +106,11 @@ export function createToggleMutation<TData = unknown>({
         onSuccessCallback?.(data, params)
       },
 
-      onError: (error, params, context) => {
-        if (optimistic) {
-          queryClient.setQueryData(queryKey, context?.previousData)
-        }
+      onError: (error, params) => {
+        // ✅ 防抖场景：连点多次只发一次请求，此时 previousData
+        // 已经包含乐观更新的中间状态，回滚会滚错
+        // 直接 invalidate 以服务器数据为准，最可靠
+        queryClient.invalidateQueries({ queryKey })
         toast.error(errorMessage)
         onErrorCallback?.(error, params)
       },
@@ -99,5 +119,43 @@ export function createToggleMutation<TData = unknown>({
         queryClient.invalidateQueries({ queryKey })
       },
     })
+
+    /**
+     * 页面入口：立即乐观更新 UI，防抖后提交最终值
+     */
+    const toggle = (params: ToggleParams) => {
+      // 1. 立即更新缓存（UI 零延迟、无闪烁）
+      if (optimistic) {
+        queryClient.setQueryData(queryKey, (old: any) =>
+          applyStatusToCache(old, params.id, params.value.status)
+        )
+      }
+
+      // 2. 不防抖：直接提交
+      if (debounceMs <= 0) {
+        mutation.mutate(params)
+        return
+      }
+
+      // 3. 防抖：记录最新值，重置该行定时器
+      latest.current.set(params.id, params.value)
+
+      const prev = timers.current.get(params.id)
+      if (prev) clearTimeout(prev)
+
+      timers.current.set(
+        params.id,
+        setTimeout(() => {
+          const finalValue = latest.current.get(params.id)
+          latest.current.delete(params.id)
+          timers.current.delete(params.id)
+          if (finalValue) {
+            mutation.mutate({ id: params.id, value: finalValue })
+          }
+        }, debounceMs)
+      )
+    }
+
+    return { ...mutation, toggle }
   }
 }
